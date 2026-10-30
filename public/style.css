@@ -153,3 +153,16 @@ p { margin: 6px 0; }
     font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
     color: #e8f0ff;
 }
+
+#notice {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: min(640px, calc(100vw - 32px));
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: rgba(120, 30, 24, 0.92);
+    color: #fff;
+    font-size: 14px;
+}

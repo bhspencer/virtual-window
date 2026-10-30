@@ -1,7 +1,10 @@
 // The webcam and the face landmarker: finds the viewer's face in each new frame and works out where
 // their eyes are (eye-position.js), smoothed.
 import { FaceLandmarker, FilesetResolver } from '../vendor/mediapipe/vision_bundle.mjs';
-import { EYE_CORNERS, eyePoint, OneEuroFilter } from './eye-position.js';
+import { EYE_CORNERS, eyePoint, OneEuroFilter, eyeSpacingInIrises, IRIS_DIAMETER, median, knownWebcam, hfovFromDiagonal } from './eye-position.js';
+
+/** Frames of a face seen square-on to measure the eye spacing from: about five seconds' worth. */
+const SPACING_SAMPLES = 90;
 
 export class HeadTracker {
     /** settings: the Settings, for the webcam's calibration and the smoothing. */
@@ -15,6 +18,9 @@ export class HeadTracker {
         this.latest = null;
         this.running = false;
         this.detectionsPerSecond = 0;
+        /** The webcam: its name, and if it's one we know, its model and field of view. */
+        this.camera = null;
+        this.spacingSamples = [];
     }
 
     async start() {
@@ -25,15 +31,26 @@ export class HeadTracker {
         });
         this.video.srcObject = stream;
         await this.video.play();
+        this.identifyCamera(stream.getVideoTracks()[0]);
+        this.spacingSamples = [];
+        const delegate = this.settings.get('trackerDelegate');
+        if (this.landmarker && this.delegate !== delegate) {
+            this.landmarker.close();
+            this.landmarker = null;
+        }
         if (!this.landmarker) {
+            this.delegate = delegate;
             const files = await FilesetResolver.forVisionTasks('vendor/mediapipe/wasm');
             const options = (delegate) => ({
                 baseOptions: { modelAssetPath: 'models/face_landmarker.task', delegate },
                 runningMode: 'VIDEO', numFaces: 1, outputFacialTransformationMatrixes: true
             });
+            // On the CPU by default: on the GPU it competes with the scene for the graphics card, which on
+            // a modest one can make the browser drop the scene's context (a black window).
             try {
-                this.landmarker = await FaceLandmarker.createFromOptions(files, options('GPU'));
+                this.landmarker = await FaceLandmarker.createFromOptions(files, options(delegate));
             } catch (e) {
+                if (delegate === 'CPU') throw e;
                 console.warn('The GPU face landmarker failed; using the CPU', e);
                 this.landmarker = await FaceLandmarker.createFromOptions(files, options('CPU'));
             }
@@ -71,7 +88,8 @@ export class HeadTracker {
             matrix: result.facialTransformationMatrixes?.[0]?.data
         };
         const raw = eyePoint(face, this.settings.camera());
-        if (!(raw.z > 0.05 && raw.z < 10)) return;
+        if (![raw.x, raw.y, raw.z].every(Number.isFinite) || !(raw.z > 0.05 && raw.z < 10)) return;
+        this.measureEyeSpacing(landmarks, face);
         const t = now / 1000;
         const steady = this.settings.get('steadiness'), quick = this.settings.get('responsiveness');
         const eye = {};
@@ -82,6 +100,44 @@ export class HeadTracker {
             eye[axis] = filter.filter(raw[axis], t);
         }
         this.latest = { eye, raw, face, landmarks, at: now };
+    }
+
+    /**
+     * Sets the webcam's field of view from its published specification, if it's a model we know and
+     * the field of view hasn't been measured or entered by hand.
+     */
+    identifyCamera(track) {
+        const { width, height } = track?.getSettings() ?? {};
+        const known = knownWebcam(track?.label);
+        this.camera = { label: track?.label || 'Webcam', width, height, known: null };
+        if (!known || !width || !height) return;
+        const hfov = Math.round(hfovFromDiagonal(known.diagonalDeg, width / height) * 10) / 10;
+        this.camera.known = { ...known, hfov };
+        if (this.settings.get('cameraFovSource') !== 'measured' && this.settings.get('cameraFovSource') !== 'entered') {
+            this.settings.set('cameraFov', hfov);
+            this.settings.set('cameraFovSource', 'specification');
+        }
+    }
+
+    /**
+     * Measures the viewer's eye spacing with their irises as the ruler (eye-position.js), from frames
+     * where they face the camera square-on, and sets it once there are enough: no tape measure needed.
+     */
+    measureEyeSpacing(landmarks, face) {
+        if (!this.settings.get('ipdAuto') || this.spacingSamples.length >= SPACING_SAMPLES) return;
+        const squareOn = !face.matrix || Math.hypot(face.matrix[0], face.matrix[1]) > 0.97;
+        const ratio = squareOn ? eyeSpacingInIrises(landmarks, face.width, face.height) : null;
+        if (!(ratio > 3 && ratio < 8)) return;
+        this.spacingSamples.push(ratio);
+        if (this.spacingSamples.length === SPACING_SAMPLES) {
+            const mm = Math.round(median(this.spacingSamples) * IRIS_DIAMETER * 2000) / 2;
+            if (mm >= 50 && mm <= 80) this.settings.set('ipd', mm);
+        }
+    }
+
+    /** How far the eye spacing measurement has got, 0 to 1. */
+    get spacingProgress() {
+        return this.spacingSamples.length / SPACING_SAMPLES;
     }
 
     countDetection(now) {

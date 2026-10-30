@@ -55,6 +55,26 @@ setInterval(placeSun, 20000);
 
 window.addEventListener('resize', () => renderer.setSize(window.innerWidth, window.innerHeight, false));
 
+// --- Saying what's wrong, rather than showing black ---------------------------------------------------
+
+let noticeTimer = null;
+function notice(text, { lasting = false } = {}) {
+    const el = $('notice');
+    el.textContent = text;
+    el.hidden = !text;
+    clearTimeout(noticeTimer);
+    if (text && !lasting) noticeTimer = setTimeout(() => { el.hidden = true; }, 12000);
+}
+// A graphics card under strain can make the browser drop the scene's context: say so, and let three.js
+// bring it back.
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    notice('The graphics card dropped the 3D view. Recovering… If this keeps happening, lower Detail in the settings.', { lasting: true });
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => notice(''));
+window.addEventListener('error', (e) => notice(`Something went wrong: ${e.message}`));
+window.addEventListener('unhandledrejection', (e) => notice(`Something went wrong: ${e.reason?.message ?? e.reason}`));
+
 // --- Where the eye is -----------------------------------------------------------------------------
 
 const tracker = new HeadTracker(settings);
@@ -116,6 +136,8 @@ function frame() {
     const dt = Math.min(0.1, clock.getDelta());
     const t = clock.getElapsed();
     updateEye(now, dt);
+    // Never draw from nowhere: a bad position would leave the window black.
+    if (![eye.x, eye.y, eye.z].every(Number.isFinite)) eye = resting();
     const { w, h } = settings.screen();
     applyWindowProjection(camera, { x: eye.x, y: eye.y, z: Math.max(0.05, eye.z) }, w, h, 40000);
     countryside.update(t);
@@ -140,6 +162,7 @@ function buildForm() {
     form.innerHTML = '';
     const groups = new Map();
     for (const s of SETTINGS) {
+        if (s.kind === 'hidden') continue;
         if (!groups.has(s.group)) {
             const fieldset = document.createElement('fieldset');
             fieldset.innerHTML = `<legend>${s.group}</legend>`;
@@ -166,6 +189,12 @@ function buildForm() {
                 const v = Number(input.value);
                 if (Number.isFinite(v)) settings.set(s.key, Math.min(s.max, Math.max(s.min, v)));
                 input.value = settings.get(s.key);
+                // Entered by hand: not to be overridden by the automatic values.
+                if (s.key === 'cameraFov') settings.set('cameraFovSource', 'entered');
+                if (s.key === 'ipd' && settings.get('ipdAuto')) {
+                    settings.set('ipdAuto', false);
+                    buildForm();
+                }
             });
         }
         input.dataset.key = s.key;
@@ -204,6 +233,12 @@ settings.onChange((key, value) => {
     }
     if (key === 'restingDistance') mouseDistance = null;
     if (key === 'debug') showReadout();
+    // Set by the tracker (the webcam's field of view, the measured eye spacing): show the new value.
+    const field = document.querySelector(`#settings-form [data-key="${key}"]`);
+    if (field && document.activeElement !== field) {
+        if (field.type === 'checkbox') field.checked = value;
+        else field.value = value;
+    }
     const setting = SETTINGS.find((s) => s.key === key);
     if (setting?.reload) $('status').textContent = 'Reload the page for the new detail level.';
 });
@@ -284,6 +319,7 @@ $('calibrate').addEventListener('click', () => {
         return;
     }
     settings.set('cameraFov', Math.round(hfov * 10) / 10);
+    settings.set('cameraFovSource', 'measured');
     buildForm();
     $('calibration-result').textContent = `Field of view set to ${settings.get('cameraFov')}°.`;
 });
@@ -303,7 +339,32 @@ navigator.permissions?.query({ name: 'camera' }).then((p) => { if (p.state === '
 
 // --- Readout and preview --------------------------------------------------------------------------
 
+/** The panel's live account of tracking: where you are, the webcam, the eye spacing. */
+function showTrackingDetails() {
+    const details = $('tracking-details');
+    if (!tracker.running) {
+        details.textContent = '';
+        return;
+    }
+    const lines = [];
+    const latest = tracker.latest;
+    if (latest && performance.now() - latest.at < 1200) {
+        lines.push(`You're about ${Math.round(latest.eye.z * 100)} cm from the screen, ${Math.round(Math.abs(latest.eye.x) * 100)} cm ${latest.eye.x < 0 ? 'left' : 'right'} of its centre.`);
+    } else {
+        lines.push('No face in view.');
+    }
+    const camera = tracker.camera;
+    if (camera?.known) lines.push(`${camera.label}: field of view ${camera.known.hfov}°, from its specification.`);
+    else if (camera) lines.push(`${camera.label}: not a model we know; its field of view is ${settings.get('cameraFov')}°${settings.get('cameraFovSource') === 'measured' ? ', calibrated' : settings.get('cameraFovSource') === 'entered' ? ', as entered' : '. Calibrate it below for the right distances'}.`);
+    if (settings.get('ipdAuto')) {
+        const progress = tracker.spacingProgress;
+        lines.push(progress < 1 ? `Measuring the distance between your eyes: look at the camera… ${Math.round(progress * 100)}%` : `Your eyes are ${settings.get('ipd')} mm apart, measured.`);
+    }
+    details.textContent = lines.join(' ');
+}
+
 function showReadout() {
+    showTrackingDetails();
     const readout = $('readout');
     readout.hidden = !settings.get('debug');
     if (readout.hidden) return;

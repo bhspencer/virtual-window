@@ -61,3 +61,35 @@ test('the One Euro filter: steady at rest, follows a step, and passes the first 
     for (let i = 121; i <= 300; i++) v = filter.filter(6, i / 60);
     close(v, 6, 0.01, 'reaches a new position');
 });
+
+import { eyeSpacingInIrises, IRIS_DIAMETER, median, knownWebcam, hfovFromDiagonal } from '../public/js/eye-position.js';
+
+test('the irises as a ruler: eye spacing measured in iris widths, the same at any distance', () => {
+    /** Landmarks for eyes `spacing` apart, irises IRIS_DIAMETER wide, at distance z. */
+    const landmarks = (spacing, z) => {
+        const points = Array.from({ length: 478 }, () => ({ x: 0.5, y: 0.5 }));
+        const at = (x) => 0.5 + x * f / z / W;
+        for (const [side, sign] of [['right', 1], ['left', -1]]) {
+            const cx = sign * spacing / 2;
+            const corners = side === 'right' ? [33, 133] : [362, 263];
+            points[corners[0]] = { x: at(cx - 0.012), y: 0.5 }; points[corners[1]] = { x: at(cx + 0.012), y: 0.5 };
+            const iris = side === 'right' ? [469, 471] : [474, 476];
+            points[iris[0]] = { x: at(cx + IRIS_DIAMETER / 2), y: 0.5 }; points[iris[1]] = { x: at(cx - IRIS_DIAMETER / 2), y: 0.5 };
+        }
+        return points;
+    };
+    for (const z of [0.4, 0.9, 2.0]) close(eyeSpacingInIrises(landmarks(0.061, z), W, H) * IRIS_DIAMETER, 0.061, 1e-9, `at ${z} m`);
+    assert.equal(eyeSpacingInIrises(new Array(468).fill({ x: 0.5, y: 0.5 }), W, H), null, 'no iris landmarks');
+});
+
+test('median', () => {
+    assert.equal(median([3, 1, 2]), 2);
+    assert.equal(median([4, 1, 3, 2]), 2.5);
+});
+
+test('known webcams by the name the browser reports, and their horizontal field of view', () => {
+    assert.deepEqual(knownWebcam('HD Pro Webcam C920 (046d:082d)'), { model: 'c920', diagonalDeg: 78 });
+    assert.equal(knownWebcam('Integrated Camera'), null);
+    close(hfovFromDiagonal(78, 16 / 9), 70.42, 0.05, 'C920 at 16:9: its quoted 70.42 degrees');
+    assert.ok(hfovFromDiagonal(78, 4 / 3) < hfovFromDiagonal(78, 16 / 9), '4:3 is cropped from the sides');
+});

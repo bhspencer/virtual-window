@@ -21,6 +21,7 @@
         </header>
         <section class="tracking">
             <p id="status">Not tracking: move the mouse to look around.</p>
+            <p id="tracking-details" class="muted"></p>
             <div class="buttons">
                 <button id="toggle-tracking" class="primary">Start tracking</button>
                 <button id="fullscreen">Fullscreen (F)</button>
@@ -29,7 +30,7 @@
         </section>
         <section class="calibrate">
             <h2>Calibrate the webcam's field of view</h2>
-            <p>Sit facing the webcam, measure from it to your eyes, enter that, and press Calibrate while tracking.</p>
+            <p>Only needed if your webcam isn't recognised (see above). Sit facing it, measure from it to your eyes, enter that, and press Calibrate while tracking.</p>
             <div class="row">
                 <label>Distance <input id="calibration-distance" type="number" min="20" max="400" step="1" value="60"> cm</label>
                 <button id="calibrate">Calibrate</button>
@@ -43,6 +44,7 @@
     </aside>
 
     <pre id="readout" hidden></pre>
+    <div id="notice" role="alert" hidden></div>
 
     <script type="module" src="js/main.js"></script>
 </body>

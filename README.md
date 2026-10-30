@@ -62,16 +62,25 @@ The illusion depends on the numbers matching the real world. In the settings:
    fills that area.
 2. **Webcam:** where its lens is, measured from the centre of the screen (usually straight up: half
    the screen height plus the bezel), and whether it's tilted down.
-3. **Field of view:** sit facing the webcam at a measured distance, enter that distance, and press
-   **Calibrate**. Or enter the camera's horizontal field of view from its specification.
-4. **Interpupillary distance:** 63 mm is the adult average. If the view seems to zoom wrongly as you
-   approach, adjust it.
+3. **Field of view:** set automatically, from its specification, for common webcams, recognised by
+   the name the browser reports (Logitech C920 and similar, Brio, StreamCam, Microsoft LifeCam,
+   Razer Kiyo, Insta360 Link). For others, sit facing the webcam at a measured distance, enter it,
+   and press **Calibrate**. Distance from one camera depends on its field of view; that's the one
+   number to get right.
+4. **The distance between your eyes:** measured automatically in the first few seconds of tracking,
+   using your irises as a ruler. The human iris is about 11.7 mm across in nearly every adult, so the
+   ratio of eye spacing to iris width gives the spacing without a tape measure.
 5. **Mirrored:** if moving left moves the view the wrong way, tick *Picture arrives mirrored*.
 6. **Place and time:** the window's height above the ground outside, which way it faces, and your
    latitude and longitude. The sun follows the real time, or a fixed hour.
 
-**Show tracking readout** displays the eye position in centimetres, which is handy while
-calibrating: walk to a measured spot and check it agrees.
+While tracking, the settings panel says how far from the screen you are, which webcam it found, and
+how the eye measurement is going. **Show tracking readout** keeps the eye position on screen, which
+is handy while calibrating: walk to a measured spot and check it agrees.
+
+Face tracking runs on the CPU by default. On the GPU it competes with the scene for the graphics
+card, and on a modest one the browser can drop the scene. If that happens, the window says so and
+recovers.
 
 Settings are kept in the browser's local storage on that machine.
 

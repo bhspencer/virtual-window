@@ -97,3 +97,64 @@ export class OneEuroFilter {
         return this.x;
     }
 }
+
+/** Face landmarker indices: each iris's centre and four points on its rim (right, top, left, bottom). */
+export const IRISES = { right: [468, 469, 470, 471, 472], left: [473, 474, 475, 476, 477] };
+
+/**
+ * The human iris's visible diameter, in metres: about 11.7 mm, and remarkably consistent between
+ * adults (far more so than the distance between the eyes), which is why MediaPipe's own iris depth
+ * estimate relies on it.
+ */
+export const IRIS_DIAMETER = 0.0117;
+
+/**
+ * The ratio of the eyes' separation to an iris's width, both measured across the image: the same at
+ * any distance and with any camera, so with the iris's known size it measures this viewer's eye
+ * spacing without a tape measure. Null if the landmarks have no irises.
+ */
+export function eyeSpacingInIrises(landmarks, width, height) {
+    if (!landmarks || landmarks.length < 478) return null;
+    const px = (i) => ({ x: landmarks[i].x * width, y: landmarks[i].y * height });
+    const across = (a, b) => Math.hypot(px(a).x - px(b).x, px(a).y - px(b).y);
+    const irisWidth = (across(IRISES.right[1], IRISES.right[3]) + across(IRISES.left[1], IRISES.left[3])) / 2;
+    const centre = ([a, b]) => ({ x: (px(a).x + px(b).x) / 2, y: (px(a).y + px(b).y) / 2 });
+    const r = centre(EYE_CORNERS.right), l = centre(EYE_CORNERS.left);
+    return irisWidth > 0 ? Math.hypot(r.x - l.x, r.y - l.y) / irisWidth : null;
+}
+
+/** The median of some numbers. */
+export function median(values) {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * Published diagonal fields of view of common webcams, by a piece of the name the browser reports for
+ * them. Most quote the diagonal; the horizontal follows from the picture's shape (hfovFromDiagonal).
+ */
+export const WEBCAM_DIAGONAL_FOV = [
+    ['c920', 78], ['c922', 78], ['c925e', 78], ['c930', 90], ['c270', 55], ['c310', 60], ['c505', 60],
+    ['c615', 78], ['brio 4k', 90], ['brio 500', 90], ['brio 300', 70], ['brio 100', 58], ['brio', 90],
+    ['streamcam', 78], ['mx brio', 90], ['kiyo pro', 103], ['kiyo', 81.6], ['lifecam hd-3000', 68.5],
+    ['lifecam studio', 75], ['lifecam cinema', 73], ['insta360 link', 79.5], ['emeet c960', 90]
+];
+
+/** The webcam's published diagonal field of view, if its name is one we know; else null. */
+export function knownWebcam(label) {
+    const name = (label ?? '').toLowerCase();
+    const found = WEBCAM_DIAGONAL_FOV.find(([part]) => name.includes(part));
+    return found ? { model: found[0], diagonalDeg: found[1] } : null;
+}
+
+/**
+ * The horizontal field of view of a picture `aspect` wide (width / height), from the camera's
+ * diagonal field of view. Webcam sensors are 16:9; a narrower picture is cropped from its sides.
+ */
+export function hfovFromDiagonal(diagonalDeg, aspect) {
+    const sensor = 16 / 9;
+    const halfDiagonal = Math.tan(diagonalDeg * Math.PI / 360);
+    const halfWidth = halfDiagonal * sensor / Math.hypot(sensor, 1) * Math.min(1, aspect / sensor);
+    return 2 * Math.atan(halfWidth) * 180 / Math.PI;
+}
