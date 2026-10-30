@@ -25,8 +25,7 @@ export function eyePoint(face, camera) {
     // image, has length sqrt(R00^2 + R10^2); dividing by it gives the separation face-on.
     const facing = matrix ? Math.max(0.5, Math.hypot(matrix[0], matrix[1])) : 1;
     const separation = Math.hypot(du, dv) / facing;
-    // Held through a blink (BlinkGuard), when the eye corners can't be trusted for distance.
-    const distance = face.distance ?? f * camera.ipd / separation;
+    const distance = f * camera.ipd / separation;
 
     const u = (left.x + right.x) / 2 * width;
     const v = (left.y + right.y) / 2 * height;
@@ -41,9 +40,7 @@ export function eyePoint(face, camera) {
     return {
         x: camera.position.x + xCam,
         y: camera.position.y + y,
-        z: camera.position.z + z,
-        /** From the camera, along its axis: what a blink's hold keeps. */
-        distance
+        z: camera.position.z + z
     };
 }
 
@@ -98,75 +95,6 @@ export class OneEuroFilter {
         const cutoff = this.minCutoff + this.beta * Math.abs(this.dx);
         this.x += OneEuroFilter.alpha(cutoff, dt) * (x - this.x);
         return this.x;
-    }
-}
-
-/** Face landmarker indices: the middle of each upper and lower eyelid. */
-export const EYELIDS = { right: [159, 145], left: [386, 374] };
-
-/** How open the eyes are: the eyelids' gap over the eye's width, averaged over both eyes. */
-export function eyeOpenness(landmarks, width, height) {
-    const gap = (a, b) => Math.hypot((landmarks[a].x - landmarks[b].x) * width, (landmarks[a].y - landmarks[b].y) * height);
-    const right = gap(...EYELIDS.right) / gap(...EYE_CORNERS.right);
-    const left = gap(...EYELIDS.left) / gap(...EYE_CORNERS.left);
-    return (right + left) / 2;
-}
-
-/**
- * Holds the distance steady through a blink. A blink moves the eye-corner landmarks the distance is
- * measured from, which would make the view zoom for a moment. The eyes count as closing when they're
- * well under their usual openness (learnt as tracking goes); from then until a moment after they
- * reopen, the distance is the one from just before the blink began. Squinting for longer than a blink
- * becomes the new usual.
- */
-export class BlinkGuard {
-    constructor({ closing = 0.75, lead = 0.12, after = 0.15, longest = 0.6 } = {}) {
-        Object.assign(this, { closing, lead, after, longest });
-        this.reset();
-    }
-
-    reset() {
-        this.usual = null;
-        this.history = [];
-        this.closedSince = null;
-        this.holdUntil = -Infinity;
-        this.held = null;
-    }
-
-    /**
-     * Given the eyes' openness and the measured distance at time t (seconds): the distance to use,
-     * the measured one or the one held through a blink.
-     */
-    distance(openness, measured, t) {
-        if (this.usual === null) this.usual = openness;
-        const closed = openness < this.usual * this.closing;
-        if (closed) {
-            if (this.closedSince === null) {
-                this.closedSince = t;
-                // The lids start moving before they cross the line: hold from a little earlier.
-                const before = this.history.filter((h) => h.t <= t - this.lead);
-                this.held = (before.at(-1) ?? this.history[0])?.distance ?? measured;
-            }
-            if (t - this.closedSince > this.longest) {
-                // Not a blink: they're just narrower now.
-                this.usual = openness;
-                this.closedSince = null;
-                this.holdUntil = -Infinity;
-                return measured;
-            }
-            this.holdUntil = t + this.after;
-        } else {
-            this.closedSince = null;
-            this.usual += (openness - this.usual) * 0.02;
-        }
-        if (t < this.holdUntil) return this.held;
-        this.history.push({ t, distance: measured });
-        while (this.history.length && this.history[0].t < t - 1) this.history.shift();
-        return measured;
-    }
-
-    get blinking() {
-        return this.closedSince !== null;
     }
 }
 

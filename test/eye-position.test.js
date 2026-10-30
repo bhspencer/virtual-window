@@ -93,20 +93,3 @@ test('known webcams by the name the browser reports, and their horizontal field 
     close(hfovFromDiagonal(78, 16 / 9), 70.42, 0.05, 'C920 at 16:9: its quoted 70.42 degrees');
     assert.ok(hfovFromDiagonal(78, 4 / 3) < hfovFromDiagonal(78, 16 / 9), '4:3 is cropped from the sides');
 });
-
-test('a blink: the distance from just before it is held until the eyes have reopened', async () => {
-    const { BlinkGuard } = await import('../public/js/eye-position.js');
-    const guard = new BlinkGuard();
-    const frames = [];
-    // Steady at 60 cm, eyes open; then a 150 ms blink during which the measured distance jumps.
-    for (let i = 0; i < 30; i++) frames.push([0.3, 0.6]);
-    frames.push([0.25, 0.58], [0.1, 0.52], [0.05, 0.5], [0.1, 0.53], [0.25, 0.58], [0.3, 0.6], [0.3, 0.6], [0.3, 0.6], [0.3, 0.6], [0.3, 0.6], [0.3, 0.6]);
-    const out = frames.map(([open, d], i) => guard.distance(open, d, i / 30));
-    // The first frame, lids barely moving, is within the usual variation and passes through.
-    for (const d of out.slice(31, 37)) assert.equal(d, 0.6);
-    assert.equal(out.at(-1), 0.6);
-    // A squint that lasts: taken as the new usual, and followed again.
-    const later = [];
-    for (let i = 0; i < 40; i++) later.push(guard.distance(0.15, 0.7, 2 + i / 30));
-    assert.equal(later.at(-1), 0.7);
-});
