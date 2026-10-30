@@ -74,6 +74,19 @@ export class Atmosphere {
         this.envScene.add(this.envSky);
         this.envTarget = null;
         this.envElevation = null;
+        this.look = { skyLight: 1, environment: 1, exposure: 1 };
+    }
+
+    /**
+     * Suits the air and light to the scene outside: `fogDensity`, how much of the sky's light reaches
+     * in (`skyLight`, `environment`, as fractions; a forest's canopy shades it), and where shadows are
+     * needed most (`sunTarget`), and `exposure` (a forest is darker than open country).
+     */
+    setLook({ fogDensity, skyLight = 1, environment = 1, exposure = 1, sunTarget } = {}) {
+        if (fogDensity !== undefined) this.scene.fog.density = fogDensity;
+        if (sunTarget) this.sunTarget.position.copy(sunTarget);
+        this.look = { skyLight, environment, exposure };
+        this.envElevation = null;
     }
 
     get uniforms() {
@@ -96,7 +109,7 @@ export class Atmosphere {
         const low = 1 - smoothstep(2, 25, elevation);
         this.sun.intensity = 3.2 * smoothstep(-1, 6, elevation);
         this.sun.color.setRGB(1, 1 - low * 0.35, 1 - low * 0.62);
-        this.skyLight.intensity = 0.15 + 0.85 * day;
+        this.skyLight.intensity = (0.15 + 0.85 * day) * this.look.skyLight;
         this.skyLight.color.setRGB(0.55 + 0.2 * day, 0.68 + 0.17 * day, 0.85 + 0.15 * day).multiplyScalar(0.4 + 0.6 * day);
         this.skyLight.groundColor.setRGB(0.22, 0.26, 0.14).multiplyScalar(0.3 + 0.7 * day);
 
@@ -108,7 +121,7 @@ export class Atmosphere {
         // Unlit, so brighter than white: tone mapping at this exposure would otherwise grey them.
         const cloudLight = new THREE.Color(1, 1, 1).lerp(new THREE.Color(1, 0.72, 0.55), low * 0.7).multiplyScalar(2.6 * (0.08 + 0.92 * day));
         lightClouds(this.clouds, cloudLight, 0.35 + 0.65 * day);
-        this.renderer.toneMappingExposure = 0.42 + 0.25 * (1 - day);
+        this.renderer.toneMappingExposure = (0.42 + 0.25 * (1 - day)) * this.look.exposure;
 
         if (this.envElevation === null || Math.abs(this.envElevation - elevation) > 1) {
             this.envElevation = elevation;
@@ -116,7 +129,7 @@ export class Atmosphere {
             this.envTarget = this.pmrem.fromScene(this.envScene, 0, 0.1, 1000);
             this.scene.environment = this.envTarget.texture;
             // The sky model's radiance is far brighter than the scene's other light: a little goes a long way.
-            this.scene.environmentIntensity = 0.03 + 0.07 * day;
+            this.scene.environmentIntensity = (0.03 + 0.07 * day) * this.look.environment;
         }
     }
 

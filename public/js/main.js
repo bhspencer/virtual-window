@@ -9,6 +9,7 @@ import { calibrateHfov } from './eye-position.js';
 import { solarPosition, sunDirection } from './sun.js';
 import { Atmosphere } from './scene/atmosphere.js';
 import { createCountryside } from './scene/countryside.js';
+import { createSequoiaGrove } from './scene/sequoia-grove.js';
 import { createWindowFrame } from './scene/window-frame.js';
 
 const settings = new Settings();
@@ -28,9 +29,10 @@ const scene = new THREE.Scene();
 // Its projection is set every frame by applyWindowProjection; never call updateProjectionMatrix().
 const camera = new THREE.PerspectiveCamera();
 const atmosphere = new Atmosphere(scene, renderer);
-const countryside = createCountryside(settings.get('quality'));
-countryside.setWindowHeight(settings.get('windowHeight'));
-scene.add(countryside.group);
+const outside = (settings.get('scene') === 'sequoias' ? createSequoiaGrove : createCountryside)(settings.get('quality'));
+outside.setWindowHeight(settings.get('windowHeight'));
+scene.add(outside.group);
+if (outside.look) atmosphere.setLook(outside.look);
 let windowFrame = null;
 let framedSize = null;
 
@@ -61,7 +63,7 @@ function placeSun() {
         date.setHours(Math.floor(hour), Math.round((hour % 1) * 60), 0, 0);
     }
     const position = solarPosition(date, settings.get('latitude'), settings.get('longitude'));
-    atmosphere.setSun(sunDirection(position, settings.get('facing')));
+    atmosphere.setSun(sunDirection(position, outside.look?.facing ?? settings.get('facing')));
 }
 placeSun();
 setInterval(placeSun, 20000);
@@ -159,7 +161,7 @@ function frame() {
     placeFrame(pane);
     const lean = settings.get('screenLean') * Math.PI / 180;
     applyWindowProjection(camera, { x: eye.x - pane.cx, y: eye.y - pane.cy, z: Math.max(0.05, eye.z) }, pane.w, pane.h, 40000, lean);
-    countryside.update(t);
+    outside.update(t);
     atmosphere.update(dt);
     renderer.render(scene, camera);
 
@@ -243,7 +245,7 @@ function buildForm() {
 buildForm();
 
 settings.onChange((key, value) => {
-    if (key === 'windowHeight') countryside.setWindowHeight(value);
+    if (key === 'windowHeight') outside.setWindowHeight(value);
     if (key === 'frame') placeFrame(picture(), true);
     if (['clock', 'hour', 'latitude', 'longitude', 'facing'].includes(key)) placeSun();
     if (key === 'shadows') {
@@ -259,7 +261,7 @@ settings.onChange((key, value) => {
         else field.value = value;
     }
     const setting = SETTINGS.find((s) => s.key === key);
-    if (setting?.reload) $('status').textContent = 'Reload the page for the new detail level.';
+    if (setting?.reload) $('status').textContent = 'Reload the page to apply that.';
 });
 
 function openPanel(open) {

@@ -1,7 +1,7 @@
 # Virtual Window
 
-A wall monitor that looks like a real window. The browser renders a countryside scene with three.js
-and tracks the viewer's head with the webcam. The view is drawn from where their eyes actually are,
+A wall monitor that looks like a real window. The browser renders an outdoor scene with three.js
+(rolling countryside, or a grove of giant sequoias, chosen in the settings under *The view*) and tracks the viewer's head with the webcam. The view is drawn from where their eyes actually are,
 so it shifts as they move, the way the view through a window does. Step left and more of the right
 side comes into view; step closer and the view widens; nearby things slide past distant ones.
 
