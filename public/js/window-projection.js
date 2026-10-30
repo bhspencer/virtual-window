@@ -36,15 +36,20 @@ export function nearPlane(eye) {
 }
 
 /**
- * Points a three.js camera through the window from the eye: it sits at the eye, unturned, with the
- * off-axis projection. The camera's projection is set here, so its updateProjectionMatrix() must not
- * be called afterwards (it would put back a symmetric frustum).
+ * Points a three.js camera through the window from the eye: it sits at the eye, square to the pane,
+ * with the off-axis projection. The camera's projection is set here, so its updateProjectionMatrix()
+ * must not be called afterwards (it would put back a symmetric frustum).
+ *
+ * `leanBack` (radians) is how far the screen leans back from upright, as a laptop's lid does. The eye
+ * is measured in the screen's own terms (the webcam leans with it), so the screen, the eye and the
+ * camera are turned together about the screen's horizontal axis, and the countryside stays level.
  */
-export function applyWindowProjection(camera, eye, w, h, far) {
+export function applyWindowProjection(camera, eye, w, h, far, leanBack = 0) {
     const near = nearPlane(eye);
     const f = windowFrustum(eye, w, h, near);
-    camera.position.set(eye.x, eye.y, eye.z);
-    camera.quaternion.identity();
+    const a = -leanBack;
+    camera.position.set(eye.x, eye.y * Math.cos(a) - eye.z * Math.sin(a), eye.y * Math.sin(a) + eye.z * Math.cos(a));
+    camera.quaternion.set(Math.sin(a / 2), 0, 0, Math.cos(a / 2));
     camera.near = near;
     camera.far = far;
     camera.projectionMatrix.makePerspective(f.left, f.right, f.top, f.bottom, near, far);

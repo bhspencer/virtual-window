@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Settings, SETTINGS } from './settings.js';
 import { applyWindowProjection } from './window-projection.js';
+import { pictureRect, pageOnDisplay } from './view-rect.js';
 import { HeadTracker } from './head-tracker.js';
 import { calibrateHfov } from './eye-position.js';
 import { solarPosition, sunDirection } from './sun.js';
@@ -31,14 +32,26 @@ const countryside = createCountryside(settings.get('quality'));
 countryside.setWindowHeight(settings.get('windowHeight'));
 scene.add(countryside.group);
 let windowFrame = null;
+let framedSize = null;
 
-function rebuildFrame() {
-    if (windowFrame) scene.remove(windowFrame);
+/** Where the picture is on the display, in metres: the window's pane. */
+function picture() {
     const { w, h } = settings.screen();
-    windowFrame = createWindowFrame(settings.get('frame'), w, h);
-    scene.add(windowFrame);
+    return pictureRect({ w, h, pxW: window.screen.width, pxH: window.screen.height }, pageOnDisplay());
 }
-rebuildFrame();
+
+/** The frame around the pane, rebuilt when the pane's size changes (a setting, or the browser window). */
+function placeFrame(pane, rebuild = false) {
+    const size = `${pane.w.toFixed(3)}x${pane.h.toFixed(3)}`;
+    if (rebuild || size !== framedSize) {
+        if (windowFrame) scene.remove(windowFrame);
+        windowFrame = createWindowFrame(settings.get('frame'), pane.w, pane.h);
+        scene.add(windowFrame);
+        framedSize = size;
+    }
+    windowFrame.rotation.x = -settings.get('screenLean') * Math.PI / 180;
+}
+placeFrame(picture());
 
 function placeSun() {
     let date = new Date();
@@ -87,7 +100,10 @@ let mouseDistance = null;
 /** Where the view should be from now: the tracked eye, the mouse, or the resting viewpoint. */
 function targetEye(now) {
     const latest = tracker.latest;
-    if (tracker.running && latest && now - latest.at < 1200) return { eye: latest.eye, tracked: true };
+    if (tracker.running && latest && now - latest.at < 1200) {
+        const eye = settings.get('followDistance') ? latest.eye : { ...latest.eye, z: settings.get('restingDistance') / 100 };
+        return { eye, tracked: true };
+    }
     if (!tracker.running && mouseEye) return { eye: mouseEye, tracked: false };
     return { eye: resting(), tracked: false };
 }
@@ -138,8 +154,11 @@ function frame() {
     updateEye(now, dt);
     // Never draw from nowhere: a bad position would leave the window black.
     if (![eye.x, eye.y, eye.z].every(Number.isFinite)) eye = resting();
-    const { w, h } = settings.screen();
-    applyWindowProjection(camera, { x: eye.x, y: eye.y, z: Math.max(0.05, eye.z) }, w, h, 40000);
+    // The eye is measured from the display's centre; the pane is the page's part of the display.
+    const pane = picture();
+    placeFrame(pane);
+    const lean = settings.get('screenLean') * Math.PI / 180;
+    applyWindowProjection(camera, { x: eye.x - pane.cx, y: eye.y - pane.cy, z: Math.max(0.05, eye.z) }, pane.w, pane.h, 40000, lean);
     countryside.update(t);
     atmosphere.update(dt);
     renderer.render(scene, camera);
@@ -225,7 +244,7 @@ buildForm();
 
 settings.onChange((key, value) => {
     if (key === 'windowHeight') countryside.setWindowHeight(value);
-    if (['frame', 'screenWidth', 'screenHeight'].includes(key)) rebuildFrame();
+    if (key === 'frame') placeFrame(picture(), true);
     if (['clock', 'hour', 'latitude', 'longitude', 'facing'].includes(key)) placeSun();
     if (key === 'shadows') {
         renderer.shadowMap.enabled = value;
@@ -373,6 +392,10 @@ function showReadout() {
     readout.textContent = [
         `eye    x ${cm(eye.x)}  y ${cm(eye.y)}  z ${cm(eye.z)} cm`,
         latest ? `raw    x ${cm(latest.raw.x)}  y ${cm(latest.raw.y)}  z ${cm(latest.raw.z)} cm` : 'raw    (no face)',
+        (() => {
+            const pane = picture();
+            return `pane   ${cm(pane.w)} × ${cm(pane.h).trim()} cm, centre x ${cm(pane.cx).trim()} y ${cm(pane.cy).trim()} cm${document.fullscreenElement ? ' (fullscreen)' : ''}`;
+        })(),
         `source ${tracker.running ? (latest && performance.now() - latest.at < 1200 ? 'webcam' : 'webcam, no face') : mouseEye ? 'mouse' : 'resting'}`,
         `render ${fps.toFixed(0)} fps   tracker ${tracker.detectionsPerSecond} fps`
     ].join('\n');

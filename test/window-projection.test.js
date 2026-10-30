@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { windowFrustum, nearPlane } from '../public/js/window-projection.js';
+import { windowFrustum, nearPlane, applyWindowProjection } from '../public/js/window-projection.js';
 
 const close = (a, b, label) => assert.ok(Math.abs(a - b) < 1e-9, `${label}: ${a} vs ${b}`);
 
@@ -40,4 +40,18 @@ test('the frustum, scaled out to the pane, lands exactly on the pane edges where
 
 test('the eye must be in front of the window', () => {
     assert.throws(() => windowFrustum({ x: 0, y: 0, z: 0 }, 0.6, 0.34, 0.1));
+});
+
+test('a screen leaning back: the eye and camera turn with it, and the pane\'s corners still bound the view', async () => {
+    const THREE = await import('three');
+    const camera = new THREE.PerspectiveCamera();
+    const lean = 20 * Math.PI / 180;
+    const eye = { x: 0.05, y: 0.02, z: 0.5 };
+    applyWindowProjection(camera, eye, 0.3, 0.2, 100, lean);
+    // The pane's top-right corner, turned back with the screen, lands on the view's top-right corner.
+    const corner = new THREE.Vector3(0.15, 0.1, 0).applyAxisAngle(new THREE.Vector3(1, 0, 0), -lean);
+    const ndc = corner.clone().project(camera);
+    assert.ok(Math.abs(ndc.x - 1) < 1e-9 && Math.abs(ndc.y - 1) < 1e-9, `${ndc.x}, ${ndc.y}`);
+    // Leaning back, the screen's top is further away than its bottom.
+    assert.ok(corner.z < 0);
 });

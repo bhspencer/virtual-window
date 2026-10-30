@@ -58,8 +58,11 @@ loads. With no camera, the mouse moves the viewpoint and the wheel moves it near
 
 The illusion depends on the numbers matching the real world. In the settings:
 
-1. **Screen:** the visible picture's width and height, in centimetres. Run it fullscreen, so the page
-   fills that area.
+1. **Screen:** the whole display's lit width and height, in centimetres, and how far it leans back
+   from upright (a laptop's lid, typically 10–25°; a wall-mounted screen, 0). The window is the part
+   of the display the page fills: when it isn't fullscreen, that's worked out from where the browser
+   says its window is, which is close but not exact (and not offered at all on some systems), so
+   fullscreen is best.
 2. **Webcam:** where its lens is, measured from the centre of the screen (usually straight up: half
    the screen height plus the bezel), and whether it's tilted down.
 3. **Field of view:** set automatically, from its specification, for common webcams, recognised by
@@ -71,7 +74,9 @@ The illusion depends on the numbers matching the real world. In the settings:
    using your irises as a ruler. The human iris is about 11.7 mm across in nearly every adult, so the
    ratio of eye spacing to iris width gives the spacing without a tape measure.
 5. **Mirrored:** if moving left moves the view the wrong way, tick *Picture arrives mirrored*.
-6. **Place and time:** the window's height above the ground outside, which way it faces, and your
+6. **Follow my distance:** on, the view changes as you move nearer or further, as a real window's
+   does; off, it follows you only side to side and up and down, from the *viewing distance*.
+7. **Place and time:** the window's height above the ground outside, which way it faces, and your
    latitude and longitude. The sun follows the real time, or a fixed hour.
 
 While tracking, the settings panel says how far from the screen you are, which webcam it found, and

@@ -3,8 +3,9 @@
 
 /** Each setting: its group, label, unit, kind and default. Lengths are entered in centimetres. */
 export const SETTINGS = [
-    { key: 'screenWidth', group: 'Screen', label: 'Visible width', unit: 'cm', min: 10, max: 400, step: 0.1, value: 30, help: 'Measure the lit picture area, not the bezel.' },
+    { key: 'screenWidth', group: 'Screen', label: 'Visible width', unit: 'cm', min: 10, max: 400, step: 0.1, value: 30, help: 'The whole display\'s lit area, not the bezel. When the browser isn\'t fullscreen, the window is just the part the page fills; fullscreen (F) is the most exact.' },
     { key: 'screenHeight', group: 'Screen', label: 'Visible height', unit: 'cm', min: 10, max: 300, step: 0.1, value: 20 },
+    { key: 'screenLean', group: 'Screen', label: 'Leans back from upright by', unit: '°', min: 0, max: 60, step: 0.5, value: 0, help: 'A laptop\'s lid usually leans back 10–25°; a wall-mounted screen, 0. Wrong, and the ground seems to tilt.' },
     { key: 'cameraX', group: 'Webcam', label: 'Across from the screen\'s centre', unit: 'cm', min: -200, max: 200, step: 0.5, value: 0, help: 'Where the lens is, to the right (+) or left (−) of the middle of the screen.' },
     { key: 'cameraY', group: 'Webcam', label: 'Above the screen\'s centre', unit: 'cm', min: -200, max: 200, step: 0.5, value: 10, help: 'Usually half the screen height plus the bezel.' },
     { key: 'cameraZ', group: 'Webcam', label: 'In front of the screen', unit: 'cm', min: -20, max: 50, step: 0.5, value: 0 },
@@ -17,7 +18,8 @@ export const SETTINGS = [
     { key: 'steadiness', group: 'Tracking', label: 'Steadiness', min: 0.05, max: 3, step: 0.05, value: 0.6, help: 'Lower is steadier when you\'re still, but slower to follow.' },
     { key: 'responsiveness', group: 'Tracking', label: 'Responsiveness', min: 0, max: 10, step: 0.1, value: 2.5, help: 'Higher keeps up with quick movement.' },
     { key: 'trackerDelegate', group: 'Tracking', label: 'Face tracking runs on', kind: 'select', options: [['CPU', 'The processor (recommended)'], ['GPU', 'The graphics card']], value: 'CPU', help: 'On the graphics card it competes with the scene; applies when tracking next starts.' },
-    { key: 'restingDistance', group: 'Tracking', label: 'Viewpoint with nobody there', unit: 'cm', min: 30, max: 500, step: 1, value: 40, help: 'Straight out from the screen, at this distance.' },
+    { key: 'followDistance', group: 'Tracking', label: 'Follow my distance', kind: 'checkbox', value: true, help: 'Off: the view follows you side to side and up and down only, as if you were always at the distance below.' },
+    { key: 'restingDistance', group: 'Tracking', label: 'Viewing distance', unit: 'cm', min: 30, max: 500, step: 1, value: 40, help: 'Where the view is from with nobody there (straight out from the screen), and always, when not following your distance.' },
     { key: 'windowHeight', group: 'Place', label: 'Window above the ground outside', unit: 'm', min: 0.3, max: 30, step: 0.1, value: 1.5 },
     { key: 'facing', group: 'Place', label: 'Window faces (compass)', unit: '°', min: 0, max: 359, step: 1, value: 0, help: '0 north, 90 east, 180 south, 270 west. North (in the northern hemisphere) has the sun behind you, lighting the view; south looks into it.' },
     { key: 'latitude', group: 'Place', label: 'Latitude', unit: '°', min: -90, max: 90, step: 0.01, value: 38.96 },
