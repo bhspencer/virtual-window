@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+# Publishes public/ as the site root. Deploying via Actions rather than the
+# "branch and folder" setting keeps index.html inside public/ instead of
+# forcing the whole app into the repo root or a /docs directory.
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+# Let an in-flight deploy finish rather than cancelling it mid-publish.
+concurrency:
+    group: pages
+    cancel-in-progress: false
+
+jobs:
+    deploy:
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Check the vendored assets are present
+              run: |
+                  test -f public/vendor/three/three.module.js
+                  test -f public/vendor/mediapipe/vision_bundle.mjs
+                  test -d public/vendor/mediapipe/wasm
+                  test -f public/models/face_landmarker.task
+                  echo "Site payload: $(du -sh public | cut -f1)"
+
+            - uses: actions/configure-pages@v5
+
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: public
+
+            - id: deployment
+              uses: actions/deploy-pages@v4

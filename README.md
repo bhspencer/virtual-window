@@ -36,7 +36,11 @@ every asset is served from the app itself.
 
 ## Running it
 
-The webcam only works on a secure origin. `localhost` counts, so the simplest setup is to run the
+The easiest way: open **https://bhspencer.github.io/virtual-window/** on the machine driving the
+monitor. It's deployed there by `.github/workflows/pages.yml` on every push to `main`. Pages serves
+real HTTPS, so the webcam works with no certificate warnings.
+
+To run it yourself instead: the webcam only works on a secure origin. `localhost` counts, so the simplest setup is to run the
 server on the machine driving the monitor:
 
 ```bash
