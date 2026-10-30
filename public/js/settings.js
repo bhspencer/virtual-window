@@ -3,11 +3,11 @@
 
 /** Each setting: its group, label, unit, kind and default. Lengths are entered in centimetres. */
 export const SETTINGS = [
-    { key: 'screenWidth', group: 'Screen', label: 'Visible width', unit: 'cm', min: 10, max: 400, step: 0.1, value: 59.8, help: 'Measure the lit picture area, not the bezel.' },
-    { key: 'screenHeight', group: 'Screen', label: 'Visible height', unit: 'cm', min: 10, max: 300, step: 0.1, value: 33.6 },
+    { key: 'screenWidth', group: 'Screen', label: 'Visible width', unit: 'cm', min: 10, max: 400, step: 0.1, value: 30, help: 'Measure the lit picture area, not the bezel.' },
+    { key: 'screenHeight', group: 'Screen', label: 'Visible height', unit: 'cm', min: 10, max: 300, step: 0.1, value: 20 },
     { key: 'cameraX', group: 'Webcam', label: 'Across from the screen\'s centre', unit: 'cm', min: -200, max: 200, step: 0.5, value: 0, help: 'Where the lens is, to the right (+) or left (−) of the middle of the screen.' },
-    { key: 'cameraY', group: 'Webcam', label: 'Above the screen\'s centre', unit: 'cm', min: -200, max: 200, step: 0.5, value: 18.5, help: 'Usually half the screen height plus the bezel.' },
-    { key: 'cameraZ', group: 'Webcam', label: 'In front of the screen', unit: 'cm', min: -20, max: 50, step: 0.5, value: 1 },
+    { key: 'cameraY', group: 'Webcam', label: 'Above the screen\'s centre', unit: 'cm', min: -200, max: 200, step: 0.5, value: 10, help: 'Usually half the screen height plus the bezel.' },
+    { key: 'cameraZ', group: 'Webcam', label: 'In front of the screen', unit: 'cm', min: -20, max: 50, step: 0.5, value: 0 },
     { key: 'cameraFov', group: 'Webcam', label: 'Horizontal field of view', unit: '°', min: 30, max: 120, step: 0.1, value: 65, help: 'Set from the webcam\'s specification when it\'s a model we know; otherwise calibrate it above.' },
     { key: 'cameraFovSource', kind: 'hidden', value: 'default' },
     { key: 'cameraPitch', group: 'Webcam', label: 'Tilted down by', unit: '°', min: -45, max: 45, step: 0.5, value: 0 },
@@ -17,12 +17,12 @@ export const SETTINGS = [
     { key: 'steadiness', group: 'Tracking', label: 'Steadiness', min: 0.05, max: 3, step: 0.05, value: 0.6, help: 'Lower is steadier when you\'re still, but slower to follow.' },
     { key: 'responsiveness', group: 'Tracking', label: 'Responsiveness', min: 0, max: 10, step: 0.1, value: 2.5, help: 'Higher keeps up with quick movement.' },
     { key: 'trackerDelegate', group: 'Tracking', label: 'Face tracking runs on', kind: 'select', options: [['CPU', 'The processor (recommended)'], ['GPU', 'The graphics card']], value: 'CPU', help: 'On the graphics card it competes with the scene; applies when tracking next starts.' },
-    { key: 'restingDistance', group: 'Tracking', label: 'Viewpoint with nobody there', unit: 'cm', min: 30, max: 500, step: 1, value: 150, help: 'Straight out from the screen, at this distance.' },
+    { key: 'restingDistance', group: 'Tracking', label: 'Viewpoint with nobody there', unit: 'cm', min: 30, max: 500, step: 1, value: 40, help: 'Straight out from the screen, at this distance.' },
     { key: 'windowHeight', group: 'Place', label: 'Window above the ground outside', unit: 'm', min: 0.3, max: 30, step: 0.1, value: 1.5 },
     { key: 'facing', group: 'Place', label: 'Window faces (compass)', unit: '°', min: 0, max: 359, step: 1, value: 0, help: '0 north, 90 east, 180 south, 270 west. North (in the northern hemisphere) has the sun behind you, lighting the view; south looks into it.' },
     { key: 'latitude', group: 'Place', label: 'Latitude', unit: '°', min: -90, max: 90, step: 0.01, value: 38.96 },
     { key: 'longitude', group: 'Place', label: 'Longitude', unit: '°', min: -180, max: 180, step: 0.01, value: -77.36 },
-    { key: 'clock', group: 'Time', label: 'Follow the real time', kind: 'checkbox', value: true },
+    { key: 'clock', group: 'Time', label: 'Follow the real time', kind: 'checkbox', value: false },
     { key: 'hour', group: 'Time', label: 'Otherwise, the hour', unit: 'h', min: 0, max: 24, step: 0.25, value: 15 },
     { key: 'frame', group: 'Display', label: 'Window frame', kind: 'select', options: [['reveal', 'Reveal'], ['bars', 'Reveal and glazing bars'], ['none', 'None']], value: 'reveal' },
     { key: 'quality', group: 'Display', label: 'Detail', kind: 'select', options: [['high', 'High'], ['medium', 'Medium'], ['low', 'Low']], value: 'high', help: 'Applies on reload.', reload: true },
@@ -30,7 +30,9 @@ export const SETTINGS = [
     { key: 'debug', group: 'Display', label: 'Show tracking readout', kind: 'checkbox', value: false }
 ];
 
-const KEY = 'virtual-window.settings';
+// Only the settings changed from their defaults are stored, so a change of default reaches everyone who
+// hasn't set that one themselves. (The first version stored them all, under another key.)
+const KEY = 'virtual-window.settings.changed';
 
 function load() {
     try {
@@ -55,8 +57,10 @@ export class Settings {
 
     set(key, value) {
         this.values[key] = value;
+        const changed = {};
+        for (const s of SETTINGS) if (this.values[s.key] !== s.value) changed[s.key] = this.values[s.key];
         try {
-            localStorage.setItem(KEY, JSON.stringify(this.values));
+            localStorage.setItem(KEY, JSON.stringify(changed));
         } catch {
             // Not kept past this page load; it still applies now.
         }
