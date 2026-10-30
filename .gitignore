@@ -1,0 +1,12 @@
+node_modules/
+
+# TLS private key and self-signed cert -- machine-specific, and key.pem must
+# never be published.
+certs/
+*.pem
+
+.DS_Store
+
+# Note: public/vendor/ and public/models/ ARE committed on purpose, even though
+# scripts/vendor.sh generates them. GitHub Pages serves static files only, so
+# the wasm runtime and the .task models have to be in the repo to be served.

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Virtual Window</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="importmap">
+        { "imports": { "three": "./vendor/three/three.module.js", "three/addons/": "./vendor/three/addons/" } }
+    </script>
+</head>
+<body>
+    <canvas id="view"></canvas>
+
+    <button id="open-settings" class="gear" title="Settings (S)" aria-label="Settings">⚙</button>
+
+    <aside id="panel" hidden>
+        <header>
+            <h1>Virtual window</h1>
+            <button id="close-settings" class="close" aria-label="Close">×</button>
+        </header>
+        <section class="tracking">
+            <p id="status">Not tracking: move the mouse to look around.</p>
+            <div class="buttons">
+                <button id="toggle-tracking" class="primary">Start tracking</button>
+                <button id="fullscreen">Fullscreen (F)</button>
+            </div>
+            <canvas id="preview" width="320" height="180" hidden></canvas>
+        </section>
+        <section class="calibrate">
+            <h2>Calibrate the webcam's field of view</h2>
+            <p>Sit facing the webcam, measure from it to your eyes, enter that, and press Calibrate while tracking.</p>
+            <div class="row">
+                <label>Distance <input id="calibration-distance" type="number" min="20" max="400" step="1" value="60"> cm</label>
+                <button id="calibrate">Calibrate</button>
+            </div>
+            <p id="calibration-result" class="muted"></p>
+        </section>
+        <form id="settings-form"></form>
+        <footer>
+            <button id="reset">Reset all settings</button>
+        </footer>
+    </aside>
+
+    <pre id="readout" hidden></pre>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

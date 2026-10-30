@@ -1,0 +1,18 @@
+{
+    "name": "virtual-window",
+    "version": "0.1.0",
+    "description": "A wall monitor that looks like a real window: a three.js countryside, rendered with a perspective that follows the viewer's head, tracked by webcam",
+    "type": "module",
+    "private": true,
+    "scripts": {
+        "start": "node server.js",
+        "cert": "./scripts/make-cert.sh",
+        "vendor": "./scripts/vendor.sh",
+        "test": "node --test test/*.test.js"
+    },
+    "license": "UNLICENSED",
+    "dependencies": {
+        "@mediapipe/tasks-vision": "^1.2.0",
+        "three": "^0.186.1"
+    }
+}
