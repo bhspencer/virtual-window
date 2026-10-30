@@ -1,7 +1,7 @@
 // The webcam and the face landmarker: finds the viewer's face in each new frame and works out where
 // their eyes are (eye-position.js), smoothed.
 import { FaceLandmarker, FilesetResolver } from '../vendor/mediapipe/vision_bundle.mjs';
-import { EYE_CORNERS, eyePoint, OneEuroFilter, eyeSpacingInIrises, IRIS_DIAMETER, median, knownWebcam, hfovFromDiagonal } from './eye-position.js';
+import { EYE_CORNERS, eyePoint, eyeOpenness, BlinkGuard, OneEuroFilter, eyeSpacingInIrises, IRIS_DIAMETER, median, knownWebcam, hfovFromDiagonal } from './eye-position.js';
 
 /** Frames of a face seen square-on to measure the eye spacing from: about five seconds' worth. */
 const SPACING_SAMPLES = 90;
@@ -14,6 +14,7 @@ export class HeadTracker {
         this.video.playsInline = true;
         this.video.muted = true;
         this.filters = { x: new OneEuroFilter(), y: new OneEuroFilter(), z: new OneEuroFilter() };
+        this.blinks = new BlinkGuard();
         /** The latest: eye (smoothed), face (for drawing), and when it was seen (ms, performance.now). */
         this.latest = null;
         this.running = false;
@@ -87,15 +88,21 @@ export class HeadTracker {
             width: this.video.videoWidth, height: this.video.videoHeight,
             matrix: result.facialTransformationMatrixes?.[0]?.data
         };
-        const raw = eyePoint(face, this.settings.camera());
-        if (![raw.x, raw.y, raw.z].every(Number.isFinite) || !(raw.z > 0.05 && raw.z < 10)) return;
-        this.measureEyeSpacing(landmarks, face);
+        const camera = this.settings.camera();
+        const measured = eyePoint(face, camera);
+        if (![measured.x, measured.y, measured.z].every(Number.isFinite) || !(measured.distance > 0.05 && measured.distance < 10)) return;
         const t = now / 1000;
+        const openness = eyeOpenness(landmarks, face.width, face.height);
+        const distance = this.blinks.distance(openness, measured.distance, t);
+        const raw = distance === measured.distance ? measured : eyePoint({ ...face, distance }, camera);
+        if (!this.blinks.blinking) this.measureEyeSpacing(landmarks, face);
         const steady = this.settings.get('steadiness'), quick = this.settings.get('responsiveness');
         const eye = {};
         for (const axis of ['x', 'y', 'z']) {
             const filter = this.filters[axis];
-            filter.minCutoff = steady;
+            // Distance comes from a few pixels' difference, so it's the noisiest: smoothed twice as hard
+            // at rest. A real step nearer or further is quick enough to get through.
+            filter.minCutoff = axis === 'z' ? steady / 2 : steady;
             filter.beta = quick;
             eye[axis] = filter.filter(raw[axis], t);
         }
@@ -149,5 +156,6 @@ export class HeadTracker {
     /** Starts the smoothing afresh, as when the viewer has been away. */
     resetSmoothing() {
         for (const filter of Object.values(this.filters)) filter.reset();
+        this.blinks.reset();
     }
 }
